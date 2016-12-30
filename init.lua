@@ -164,8 +164,8 @@ minetest.register_entity("submarines:submarine",{
 
 minetest.register_craftitem("submarines:submarine",{
 	description = "Submarine",
-	inventory_image = "default_stick.png",
-	wield_image = "default_stick.png",
+	inventory_image = "submarine_inv.png",
+	wield_image = "submarine_inv.png",
 	liquids_pointable = true,
 	groups = {},
 	
