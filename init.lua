@@ -127,6 +127,8 @@ minetest.register_entity("submarines:submarine",{
 			if not ctrl.jump or ctrl.sneak then
 				self.vspeed = self.vspeed * 0.9
 			end
+			
+			self.driver:set_breath(11)
 		end
 		
 		if math.abs(self.speed ) < 0.09 then
