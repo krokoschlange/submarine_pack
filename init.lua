@@ -121,10 +121,16 @@ minetest.register_entity("submarines:submarine",{
 					yaw = yaw + 0.03
 				end
 			end
-			if not ctrl.up or ctrl.down then
+			if not ctrl.up then
 				self.speed = self.speed * 0.9
 			end
-			if not ctrl.jump or ctrl.sneak then
+			if not ctrl.down then
+				self.speed = self.speed * 0.9
+			end
+			if not ctrl.sneak then
+				self.speed = self.speed * 0.9
+			end
+			if not ctrl.jump then
 				self.vspeed = self.vspeed * 0.9
 			end
 			
