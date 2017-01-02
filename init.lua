@@ -128,7 +128,7 @@ minetest.register_entity("submarines:submarine",{
 				self.speed = self.speed * 0.9
 			end
 			if not ctrl.sneak then
-				self.speed = self.speed * 0.9
+				self.vspeed = self.vspeed * 0.9
 			end
 			if not ctrl.jump then
 				self.vspeed = self.vspeed * 0.9
