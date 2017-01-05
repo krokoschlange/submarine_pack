@@ -1,0 +1,3 @@
+#Sets the volume of the sonar ping when
+#someone is in a submarine.
+submarine_sonar_ping_volume (Volume of the sonar ping) float 2.0

@@ -13,13 +13,18 @@ end
 
 --launches the torpedo
 shoot_torpedo = function(pos, yaw, launcher_submarine)
-	if launcher_submarine.reloaded then
-		launcher_submarine.reloaded = false
-		local obj = minetest.env:add_entity(pos, "submarines:torpedo")
-		obj:setyaw(yaw)
-		minetest.after(2,function()
-			launcher_submarine.reloaded = true
-		end)
+	local pname = launcher_submarine.driver:get_player_name()
+	local inv = minetest.get_inventory({type="player", name=pname})
+	if inv:contains_item("main", "submarines:torpedo") or minetest.setting_getbool("creative_mode") then
+		if launcher_submarine.reloaded then
+			inv:remove_item("main", "submarines:torpedo")
+			launcher_submarine.reloaded = false
+			local obj = minetest.env:add_entity(pos, "submarines:torpedo")
+			obj:setyaw(yaw)
+			minetest.after(2,function()
+				launcher_submarine.reloaded = true
+			end)
+		end
 	end
 end
 
@@ -77,6 +82,9 @@ minetest.register_entity("submarines:submarine",{
 	health = 2000,
 	old_speed = 0,
 	animation = 0,
+	soundPing = nil,
+	ping_sound_volume = minetest.setting_get("submarine_sonar_ping_volume") or 2.0,
+	soundMotor = nil,
 	
 	on_rightclick = function(self, clicker)
 		if not clicker or not clicker:is_player() then
@@ -84,10 +92,13 @@ minetest.register_entity("submarines:submarine",{
 		end
 		local name = clicker:get_player_name()
 		if self.driver and clicker == self.driver then
+			minetest.sound_stop(self.soundPing)
+			minetest.sound_stop(self.soundMotor)
 			self.driver = nil
 			clicker:set_detach()
 			default.player_attached[name] = false
 			default.player_set_animation(clicker, "stand" , 30)
+			clicker:set_eye_offset({x=0, y=0, z=0}, {x=0, y=0, z=0})
 			local pos = clicker:getpos()
 			pos = {x = pos.x, y = pos.y + 0.2, z = pos.z}
 			minetest.after(0.1, function()
@@ -106,10 +117,14 @@ minetest.register_entity("submarines:submarine",{
 			clicker:set_attach(self.object, "",
 				{x = 0, y = 4, z = 0}, {x = 0, y = 0, z = 0})
 			default.player_attached[name] = true
+			clicker:set_eye_offset({x=0, y=0, z=0}, {x=0, y=0, z=0})
 			minetest.after(0.2, function()
 				default.player_set_animation(clicker, "sit" , 30)
 			end)
 			clicker:set_look_horizontal(self.object:getyaw())
+			
+			self.soundPing=minetest.sound_play({name="Sonar_Ping_with_Noise"},{object = self.object, gain = self.ping_sound_volume, max_hear_distance = 32, loop = true,})
+			self.soundMotor=minetest.sound_play({name="motor"},{object = self.object, gain = 2.0, max_hear_distance = 32, loop = true,})
 		end
 	end,
 	
@@ -368,11 +383,16 @@ minetest.register_entity("submarines:torpedo",{
 	textures = {"submarine.png","submarine.png"},
 	speed = 6, --set this to whatever you want; changes the speed of the torpedo
 	timer = 0, --the amount of steps after which the torpedo will become explosive; to prevent blowing up yourself
+	sound = nil,
 	
 	
 	on_activate = function(self, staticdata, dtime_s)
 		self.object:set_armor_groups({immortal = 1})
 		self.object:set_animation({x=1,y=20}, 100, 0)
+		self.sound=minetest.sound_play({name="torpedo_launch"},{object = self.object, gain = 4.0, max_hear_distance = 32, loop = false,})
+		minetest.after(2,function()
+			self.sound=minetest.sound_play({name="torpedo"},{object = self.object, gain = 4.0, max_hear_distance = 32, loop = true,})
+		end)
 	end,
 	
 	on_step = function(self, dtime)
@@ -409,10 +429,12 @@ minetest.register_entity("submarines:torpedo",{
 			local noboom = next(objects) == nil
 			
 			if nodes then
+				minetest.sound_stop(self.sound)
 				tnt.boom(pos, {damage_radius=4,radius=1,ignore_protection=false})
 				self.object:remove()
 			end
 			if not noboom then
+				minetest.sound_stop(self.sound)
 				tnt.boom(pos, {damage_radius=4,radius=1,ignore_protection=false})
 				self.object:remove()
 			end
@@ -427,10 +449,10 @@ minetest.register_entity("submarines:torpedo",{
 
 minetest.register_craftitem("submarines:torpedo",{
 	description = "Torpedo",
-	inventory_image = "submarine_inv.png",
-	wield_image = "submarine_inv.png",
+	inventory_image = "torpedo_inv.png",
+	wield_image = "torpedo_inv.png",
 	liquids_pointable = true,
-	groups = {not_in_creative_inventory = 1},
+	groups = {},
 	
 	on_place = function(itemstack, placer, pointed_thing)
 		if pointed_thing.type ~= "node" then
@@ -445,6 +467,14 @@ minetest.register_craftitem("submarines:torpedo",{
 	end,
 })
 
+minetest.register_craft({
+	output = "submarines:torpedo 2",
+	recipe = {
+		{"default:steel_ingot","default:steel_ingot","default:steel_ingot"   },
+		{"boats:boat"       ,"tnt:tnt"          ,"fire:flint_and_steel"},
+		{"default:steel_ingot","default:steel_ingot","default:steel_ingot"   },
+	},
+})
 
 minetest.register_entity("submarines:wreck",{
 	hp_max = 10,
@@ -460,14 +490,14 @@ minetest.register_entity("submarines:wreck",{
 		self.object:setvelocity({x = 0, y = -1.5, z = 0})
 		self.object:setacceleration({x = 0, y = -0.1, z = 0})
 		minetest.add_particlespawner({
-		amount = 80,
+		amount = 200,
 		time = 0.1,
 		minpos = {x = -0.5, y = -0.5, z = -0.5},
 		maxpos = {x = 0.5, y = 0.5, z = 0.5},
-		minvel = {x = -3, y = -3, z = -3},
-		maxvel = {x = 3, y = 3, z = 3},
-		minacc = {x = -2, y = -2, z = -2},
-		maxacc = {x = 2, y = 2, z = 2},
+		minvel = {x = -1, y = -1, z = -1},
+		maxvel = {x = 1, y = 1, z = 1},
+		minacc = {x = -0.5, y = -0.5, z = -0.5},
+		maxacc = {x = 0.5, y = 0.5, z = 0.5},
 		minexptime = 2,
 		maxexptime = 2.5,
 		minsize = 1,
@@ -476,14 +506,14 @@ minetest.register_entity("submarines:wreck",{
 		texture = "submarine_particle.png",
 		})
 		minetest.add_particlespawner({
-		amount = 80,
+		amount = 200,
 		time = 0.1,
 		minpos = {x = -0.5, y = -0.5, z = -0.5},
 		maxpos = {x = 0.5, y = 0.5, z = 0.5},
-		minvel = {x = -3, y = -3, z = -3},
-		maxvel = {x = 3, y = 3, z = 3},
-		minacc = {x = -2, y = -2, z = -2},
-		maxacc = {x = 2, y = 2, z = 2},
+		minvel = {x = -1, y = -1, z = -1},
+		maxvel = {x = 1, y = 1, z = 1},
+		minacc = {x = -0.5, y = -0.5, z = -0.5},
+		maxacc = {x = 0.5, y = 0.5, z = 0.5},
 		minexptime = 2,
 		maxexptime = 2.5,
 		minsize = 1,
