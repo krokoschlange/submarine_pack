@@ -2,6 +2,8 @@ submarines:register_submarine("submarine",{
 	----------submarine
 	model = "submarine_new_new.b3d",
 	textures = {"submarine.png","submarine.png","default_steel_block.png","gui_hotbar_edit.png","cross.png"},
+	visual_size = {x = 0.8, y = 0.8},
+	collisionbox = {-1,-1,-1, 1,1,1},
 	max_speed = 4, -- maximum speed
 	max_vspeed = 2, -- maximum vertical speed
 	submarine_item_description = "Submarine",
@@ -11,6 +13,10 @@ submarines:register_submarine("submarine",{
 		{"default:steelblock", "default:mese",       "default:steelblock"},
 		{"default:steelblock", "default:steelblock", "default:steelblock"},
 	},
+	view_offset = {x=0, y=-6, z=0},
+	view_offset3rdprs = {x=0, y=0, z=0},
+	player_offset = {x = 0, y = 12, z = 0},
+	player_rotation = {x = 0, y = 0, z = 0},
 	----------torpedo
 	torpedo_model = "torpedo.b3d",
 	torpedo_textures = {"submarine.png","submarine.png"},

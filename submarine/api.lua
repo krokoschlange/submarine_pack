@@ -35,7 +35,7 @@ force_reload = function(launcher_submarine)
 end
 
 --attach player
-local function attach(player, entity)
+local function attach(player, entity, view_offset, view_offset3rdprs, player_offset, player_rotation)
 	local attach = player:get_attach()
 	if attach and attach:get_luaentity() then
 		local luaentity = attach:get_luaentity()
@@ -46,12 +46,12 @@ local function attach(player, entity)
 	end
 	entity.driver = player
 	player:set_attach(entity.object, "",
-		{x = 0, y = 12, z = 0}, {x = 0, y = 0, z = 0})
+		{x = player_offset.x, y = player_offset.y, z = player_offset.z}, {x = player_rotation.x, y = player_rotation.y, z = player_rotation.z})
 	player:set_nametag_attributes({
 		color = {a = 0, r = 255, g = 255, b = 255}
 	})
 	default.player_attached[player:get_player_name()] = true
-	player:set_eye_offset({x=0, y=-6, z=0}, {x=0, y=0, z=0})
+	player:set_eye_offset({x = view_offset.x, y = view_offset.y, z = view_offset.z},{x = view_offset3rdprs.x, y = view_offset3rdprs.y, z = view_offset3rdprs.z})
 	minetest.after(0.2, function()
 		default.player_set_animation(player, "sit" , 30)
 	end)
@@ -105,9 +105,9 @@ function submarines:register_submarine(name, prototype)
 		hp_max = 10,
 		physical = true,
 		collide_with_objects = true,
-		collisionbox = {-1,-1,-1, 1,1,1},
+		collisionbox = prototype.collisionbox,
 		visual = "mesh",
-		visual_size = {x = 0.8, y = 0.8},
+		visual_size = prototype.visual_size,
 		mesh = prototype.model,
 		textures = prototype.textures,
 		driver = nil,
@@ -115,6 +115,10 @@ function submarines:register_submarine(name, prototype)
 		vspeed = 0, --vertical speed of the submarine
 		max_speed = prototype.max_speed or 6,
 		max_vspeed = prototype.max_vspeed or 4,
+		view_offset = prototype.view_offset,
+		view_offset3rdprs = prototype.view_offset3rdprs,
+		player_offset = prototype.player_offset,
+		player_rotation = prototype.player_rotation,
 		health = 2000,
 		old_speed = 0,
 		animation = 0,
@@ -130,7 +134,7 @@ function submarines:register_submarine(name, prototype)
 			if self.driver and clicker == self.driver then
 				force_detach(clicker)
 			elseif not self.driver then
-				attach(clicker, self)
+				attach(clicker, self, self.view_offset, self.view_offset3rdprs, self.player_offset, self.player_rotation)
 				self.soundPing=minetest.sound_play({name="Sonar_Ping_with_Noise"},{object = self.object, gain = self.ping_sound_volume, max_hear_distance = 32, loop = true,})
 				self.soundMotor=minetest.sound_play({name="motor"},{object = self.object, gain = 2.0, max_hear_distance = 32, loop = true,})
 			end
@@ -154,16 +158,32 @@ function submarines:register_submarine(name, prototype)
 			end
 			if self.driver and puncher == self.driver then
 				force_detach(puncher)
-			else
+				local inv = puncher:get_inventory()
+				if not minetest.setting_getbool("creative_mode")
+						or not inv:contains_item("main", "submarines:"..name) then
+					local leftover = inv:add_item("main", "submarines:"..name)
+					-- if no room in inventory add a replacement submarine to the world
+					if not leftover:is_empty() then
+						minetest.add_item(self.object:getpos(), leftover)
+					end
+				end
+			elseif self.driver and not puncher == self.driver then
 				self.object:set_hp(2000)
-			end
-			if not self.driver then
+			elseif not self.driver then
+				local inv = puncher:get_inventory()
+				if not minetest.setting_getbool("creative_mode")
+						or not inv:contains_item("main", "submarines:"..name) then
+					local leftover = inv:add_item("main", "submarines:"..name)
+					-- if no room in inventory add a replacement submarine to the world
+					if not leftover:is_empty() then
+						minetest.add_item(self.object:getpos(), leftover)
+					end
+				end
 				self.r3ckt = true
 				minetest.after(0.1, function()
 					self.object:remove()
 				end)
 			end
-			
 		end,
 		
 		on_step = function(self, dtime)
@@ -309,7 +329,7 @@ function submarines:register_submarine(name, prototype)
 				if self.health <= 0 then
 					if not self.r3ckt then
 						self.r3ckt = true
-						local wreck = minetest.add_entity(self.object:getpos(), "submarines:"..name .."wreck")
+						local wreck = minetest.add_entity(self.object:getpos(), "submarines:"..name .."_wreck")
 						wreck:setyaw(self.object:getyaw())
 						if self.driver then
 							local name = self.driver:get_player_name()
@@ -320,9 +340,9 @@ function submarines:register_submarine(name, prototype)
 									color = {a = 255, r = 255, g = 255, b = 255}
 								})
 							end
-							self.driver:set_eye_offset({x=0, y=-6, z=0}, {x=0, y=0, z=0})
+							self.driver:set_eye_offset({x = self.view_offset.x, y = self.view_offset.y, z = self.view_offset.z},{x = self.view_offset3rdprs.x, y = self.view_offset3rdprs.y, z = self.view_offset3rdprs.z})
 							self.driver:set_attach(wreck, "",
-								{x = 0, y = 12, z = 0}, {x = 0, y = 0, z = 0})
+								{x = self.player_offset.x, y = self.player_offset.y, z = self.player_offset.z}, {x = self.player_rotation.x, y = self.player_rotation.y, z = self.player_rotation.z})
 							default.player_attached[name] = true
 							self.driver = nil
 							minetest.sound_stop(self.soundMotor)
@@ -345,7 +365,7 @@ function submarines:register_submarine(name, prototype)
 				end
 			end
 			if self.object:get_hp() == 0 then
-				if not self.driver  then
+				if self.driver  then
 					force_detach(self.driver)
 				end
 			end
@@ -441,7 +461,7 @@ function submarines:register_submarine(name, prototype)
 				local noboom = next(objects) == nil
 				
 				if nodes or not noboom then
-					if not exploded then
+					if not self.exploded then
 						tnt.boom(pos, {damage_radius=4,radius=1,ignore_protection=false})
 						minetest.sound_stop(self.sound)
 						self.exploded = true
@@ -471,8 +491,11 @@ function submarines:register_submarine(name, prototype)
 			if not is_in_water(pointed_thing.under) then
 				return itemstack
 			end
-			torpedo = minetest.add_entity(pointed_thing.under, "submarines:"..name.."torpedo")
+			torpedo = minetest.add_entity(pointed_thing.under, "submarines:"..name.."_torpedo")
 			torpedo:setyaw(placer:get_look_horizontal())
+			if not minetest.setting_getbool("creative_mode") then
+				itemstack:take_item()
+			end
 			return itemstack
 		end,
 	})
@@ -505,7 +528,7 @@ function submarines:register_submarine(name, prototype)
 			if attach then
 				if attach:get_luaentity() == self then
 					force_detach(clicker)
-					self.attach = nil
+					self.attached = nil
 				end
 			end
 		end,
@@ -546,16 +569,6 @@ function submarines:register_submarine(name, prototype)
 			attached = self.object,
 			texture = "submarine_burst.png",
 			})
-			local all_objects = minetest.get_objects_inside_radius(pos, 3)
-			local _, object
-			for _,object in ipairs(all_objects) do
-				local attach = object:get_attach()
-				if attach then
-					if attach:get_luaentity() == self then
-						self.attached = object:get_luaentity()
-					end
-				end
-			end
 		end,
 		on_punch = function(self, puncher)
 			if not self.attached then
@@ -577,10 +590,23 @@ function submarines:register_submarine(name, prototype)
 					end
 					self.object:remove()
 				end
+			else
+			self.object:set_hp(10)
 			end
 		end,
 		
 		on_step = function(self, dtime)
+			local pos = self.object:getpos()
+			local all_objects = minetest.get_objects_inside_radius(pos, 3)
+			local _,object
+			for _,object in ipairs(all_objects) do
+				local attach = object:get_attach()
+				if attach then
+					if attach:get_luaentity() == self then
+						self.attached = object
+					end
+				end
+			end
 			self.object:setvelocity({x = 0, y = self.object:getvelocity().y, z = 0})
 			minetest.add_particlespawner({
 			amount = 1,
