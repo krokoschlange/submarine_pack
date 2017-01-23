@@ -477,7 +477,7 @@ function submarines:register_submarine(name, prototype)
 		end,
 	})
 	
-	minetest.register_craftitem("submarines:torpedo",{
+	minetest.register_craftitem("submarines:"..name.."_torpedo",{
 		description = prototype.torpedo_item_name,
 		inventory_image = prototype.torpedo_item_texture,
 		wield_image = prototype.torpedo_item_texture,
