@@ -1,6 +1,6 @@
 submarines:register_submarine("submarine",{
 	----------submarine
-	model = "submarine_new_new.b3d",
+	model = "submarine_new.b3d",
 	textures = {"submarine.png","submarine.png","default_steel_block.png","gui_hotbar_edit.png","cross.png"},
 	visual_size = {x = 0.8, y = 0.8},
 	collisionbox = {-1,-1,-1, 1,1,1},
@@ -28,7 +28,7 @@ submarines:register_submarine("submarine",{
 		{"default:steel_ingot","default:steel_ingot","default:steel_ingot"   },
 	},
 	----------wreck
-	wreck_model = "submarine_wreck_new.b3d",
+	wreck_model = "submarine_wreck.b3d",
 	wreck_textures = {"submarine_wreck.png","submarine_wreck.png","default_steel_block.png","gui_hotbar_edit.png","crack.png"},
 	items_you_get_back = "default:steelblock 8",
 })
